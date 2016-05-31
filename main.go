@@ -21,6 +21,11 @@ func main() {
 			dieUsage()
 		}
 		err = StatsCmd(os.Args[2])
+	case "train":
+		if len(os.Args) != 4 {
+			dieUsage()
+		}
+		err = TrainCmd(os.Args[2], os.Args[3])
 	default:
 		dieUsage()
 	}
@@ -34,7 +39,8 @@ func dieUsage() {
 	fmt.Fprintf(os.Stderr, "Usage: %s <command> <options>\n\n"+
 		"Available commands are:\n\n"+
 		" scrape <output.json>\n"+
-		" stats <data.json>"+
+		" stats <data.json>\n"+
+		" train <data.json> <net_out.json>"+
 		"\n\n", os.Args[0])
 	os.Exit(1)
 }

@@ -90,7 +90,13 @@ func CubeVector(c *gocube.CubieCube) linalg.Vector {
 		if i%9 == 4 {
 			continue
 		}
-		res[sticker-1+stickerIdx] = 1
+		for j := 0; j < 6; j++ {
+			if j == sticker-1 {
+				res[j+stickerIdx] = 1.0
+			} else {
+				res[j+stickerIdx] = -0.2
+			}
+		}
 		stickerIdx += 6
 	}
 
