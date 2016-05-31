@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 
 	"github.com/unixpickle/serializer"
 	"github.com/unixpickle/weakai/rnn"
@@ -27,9 +28,25 @@ func NewNetwork(inSize int, moveMap map[string]int) *Network {
 	lstmNet2 := lstm.NewNet(rnn.ReLU{}, lstmHiddenSize1, lstmHiddenSize2, len(moveMap))
 	softmaxLayer := softmax.NewSoftmax(len(moveMap))
 	net := rnn.DeepRNN{lstmNet1, lstmNet2, softmaxLayer}
+	net.Randomize()
 	return &Network{
 		RNN:     net,
 		MoveMap: moveMap,
+	}
+}
+
+func ReadNetwork(path string) (*Network, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	net, err := serializer.DeserializeWithType(data)
+	if err != nil {
+		return nil, err
+	} else if realNet, ok := net.(*Network); ok {
+		return realNet, nil
+	} else {
+		return nil, errors.New("unexpected type of archived data")
 	}
 }
 

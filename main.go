@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 func main() {
@@ -22,10 +23,15 @@ func main() {
 		}
 		err = StatsCmd(os.Args[2])
 	case "train":
-		if len(os.Args) != 4 {
+		if len(os.Args) != 5 {
 			dieUsage()
 		}
-		err = TrainCmd(os.Args[2], os.Args[3])
+		stepSize, err := strconv.ParseFloat(os.Args[4], 64)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "invalid step size.")
+			dieUsage()
+		}
+		err = TrainCmd(os.Args[2], os.Args[3], stepSize)
 	default:
 		dieUsage()
 	}
@@ -40,7 +46,7 @@ func dieUsage() {
 		"Available commands are:\n\n"+
 		" scrape <output.json>\n"+
 		" stats <data.json>\n"+
-		" train <data.json> <net_out.json>"+
+		" train <data.json> <network_file> <step size>"+
 		"\n\n", os.Args[0])
 	os.Exit(1)
 }
