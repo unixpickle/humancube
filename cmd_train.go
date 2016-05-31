@@ -20,8 +20,7 @@ import (
 )
 
 const (
-	trainingSamples = 1000
-	testingSamples  = 200
+	testingSamples = 200
 )
 
 type SolveData struct {
@@ -30,22 +29,22 @@ type SolveData struct {
 	MoveMap map[string]int
 }
 
-func TrainCmd(solveFile, outFile string, stepSize float64) error {
+func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount int) error {
 	data, err := generateSolveData(solveFile)
 	if err != nil {
 		return err
 	}
 
 	trainer := rnn.Trainer{
-		InSeqs:   data.InSeqs[:trainingSamples],
-		OutSeqs:  data.OutSeqs[:trainingSamples],
+		InSeqs:   data.InSeqs[:trainingCount],
+		OutSeqs:  data.OutSeqs[:trainingCount],
 		CostFunc: rnn.MeanSquaredCost{},
 		StepSize: stepSize,
 		Epochs:   1,
 	}
 
-	crossIn := data.InSeqs[trainingSamples : trainingSamples+testingSamples]
-	crossOut := data.OutSeqs[trainingSamples : trainingSamples+testingSamples]
+	crossIn := data.InSeqs[trainingCount : trainingCount+testingSamples]
+	crossOut := data.OutSeqs[trainingCount : trainingCount+testingSamples]
 
 	net, err := ReadNetwork(outFile)
 	if err != nil {

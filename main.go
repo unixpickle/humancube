@@ -10,33 +10,38 @@ func main() {
 	if len(os.Args) < 2 {
 		dieUsage()
 	}
-	var err error
+	var cmdErr error
 	switch os.Args[1] {
 	case "scrape":
 		if len(os.Args) != 3 {
 			dieUsage()
 		}
-		err = ScrapeCmd(os.Args[2])
+		cmdErr = ScrapeCmd(os.Args[2])
 	case "stats":
 		if len(os.Args) != 3 {
 			dieUsage()
 		}
-		err = StatsCmd(os.Args[2])
+		cmdErr = StatsCmd(os.Args[2])
 	case "train":
-		if len(os.Args) != 5 {
+		if len(os.Args) != 6 {
 			dieUsage()
 		}
 		stepSize, err := strconv.ParseFloat(os.Args[4], 64)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "invalid step size.")
-			dieUsage()
+			cmdErr = err
+			break
 		}
-		err = TrainCmd(os.Args[2], os.Args[3], stepSize)
+		trainingCount, err := strconv.Atoi(os.Args[5])
+		if err != nil {
+			cmdErr = err
+			break
+		}
+		cmdErr = TrainCmd(os.Args[2], os.Args[3], stepSize, trainingCount)
 	default:
 		dieUsage()
 	}
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	if cmdErr != nil {
+		fmt.Fprintln(os.Stderr, cmdErr)
 		os.Exit(1)
 	}
 }
@@ -46,7 +51,7 @@ func dieUsage() {
 		"Available commands are:\n\n"+
 		" scrape <output.json>\n"+
 		" stats <data.json>\n"+
-		" train <data.json> <network_file> <step size>"+
+		" train <data.json> <network_file> <step size> <training count>"+
 		"\n\n", os.Args[0])
 	os.Exit(1)
 }
