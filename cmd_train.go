@@ -6,7 +6,9 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
+	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/unixpickle/num-analysis/kahan"
 	"github.com/unixpickle/num-analysis/linalg"
@@ -20,6 +22,8 @@ const (
 )
 
 func TrainCmd(solveFile, outFile string) error {
+	rand.Seed(time.Now().UnixNano())
+
 	ins, outs, err := generateSolveVecs(solveFile)
 	if err != nil {
 		return err
@@ -36,7 +40,8 @@ func TrainCmd(solveFile, outFile string) error {
 	net.Randomize()
 	log.Println("Training...")
 	for i := 0; i < lstmEpochs; i++ {
-		log.Printf("Error at epoch %d is %f", i, totalError(&trainer, net))
+		log.Printf("Epoch %d: error=%f, correct=%f", i, totalError(&trainer, net),
+			totalCorrect(&trainer, net))
 		trainer.Train(net)
 	}
 	log.Println("Saving...")
@@ -126,4 +131,34 @@ func totalError(t *lstm.Trainer, r *lstm.RNN) float64 {
 		r.Reset()
 	}
 	return res.Sum()
+}
+
+func totalCorrect(t *lstm.Trainer, r *lstm.RNN) float64 {
+	var numCorrect int
+	var numTotal int
+	for i, inSeq := range t.InSeqs {
+		outSeq := t.OutSeqs[i]
+		for j, inVec := range inSeq {
+			outVec := outSeq[j]
+			actual := r.StepTime(inVec)
+			if maxValueIndex(actual) == maxValueIndex(outVec) {
+				numCorrect++
+			}
+			numTotal++
+		}
+		r.Reset()
+	}
+	return float64(numCorrect) / float64(numTotal)
+}
+
+func maxValueIndex(v linalg.Vector) int {
+	var maxVal float64
+	var maxIdx int
+	for i, x := range v {
+		if x > maxVal {
+			maxVal = x
+			maxIdx = i
+		}
+	}
+	return maxIdx
 }
