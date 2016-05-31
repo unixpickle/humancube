@@ -12,11 +12,13 @@ import (
 
 	"github.com/unixpickle/num-analysis/kahan"
 	"github.com/unixpickle/num-analysis/linalg"
-	"github.com/unixpickle/weakai/lstm"
+	"github.com/unixpickle/weakai/rnn"
+	"github.com/unixpickle/weakai/rnn/lstm"
+	"github.com/unixpickle/weakai/rnn/softmax"
 )
 
 const (
-	lstmStepSize   = 0.003
+	lstmStepSize   = 0.01
 	lstmEpochs     = 1000
 	lstmHiddenSize = 100
 )
@@ -29,20 +31,25 @@ func TrainCmd(solveFile, outFile string) error {
 		return err
 	}
 
-	trainer := lstm.Trainer{
-		InSeqs:   ins[:1],
-		OutSeqs:  outs[:1],
-		CostFunc: lstm.MeanSquaredCost{},
+	trainer := rnn.Trainer{
+		InSeqs:   ins[:10],
+		OutSeqs:  outs[:10],
+		CostFunc: rnn.MeanSquaredCost{},
 		StepSize: lstmStepSize,
 		Epochs:   1,
 	}
-	net := lstm.NewRNN(len(ins[0][0]), lstmHiddenSize, len(outs[0][0]))
+	lstmNet := lstm.NewNet(rnn.ReLU{}, len(ins[0][0]), lstmHiddenSize, len(outs[0][0]))
+	softmaxLayer := softmax.NewSoftmax(len(outs[0][0]))
+	net := rnn.DeepRNN{lstmNet, softmaxLayer}
 	net.Randomize()
 	log.Println("Training...")
 	for i := 0; i < lstmEpochs; i++ {
 		log.Printf("Epoch %d: error=%f, correct=%f", i, totalError(&trainer, net),
 			totalCorrect(&trainer, net))
 		trainer.Train(net)
+		if i == 60 {
+			trainer.StepSize = 0.001
+		}
 	}
 	log.Println("Saving...")
 
@@ -117,7 +124,7 @@ SolveLoop:
 	return res
 }
 
-func totalError(t *lstm.Trainer, r *lstm.RNN) float64 {
+func totalError(t *rnn.Trainer, r rnn.RNN) float64 {
 	var res kahan.Summer64
 	for i, inSeq := range t.InSeqs {
 		outSeq := t.OutSeqs[i]
@@ -133,7 +140,7 @@ func totalError(t *lstm.Trainer, r *lstm.RNN) float64 {
 	return res.Sum()
 }
 
-func totalCorrect(t *lstm.Trainer, r *lstm.RNN) float64 {
+func totalCorrect(t *rnn.Trainer, r rnn.RNN) float64 {
 	var numCorrect int
 	var numTotal int
 	for i, inSeq := range t.InSeqs {
