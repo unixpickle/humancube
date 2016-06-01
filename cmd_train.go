@@ -184,7 +184,7 @@ func totalCorrect(inSeqs, outSeqs [][]linalg.Vector, n *Network) float64 {
 		for j, inVec := range inSeq {
 			outVec := outSeq[j]
 			actual := n.RNN.StepTime(inVec)
-			if maxValueIndex(actual) == maxValueIndex(outVec) {
+			if MaxValueIndex(actual) == MaxValueIndex(outVec) {
 				numCorrect++
 			}
 			numTotal++
@@ -192,16 +192,4 @@ func totalCorrect(inSeqs, outSeqs [][]linalg.Vector, n *Network) float64 {
 		n.RNN.Reset()
 	}
 	return float64(numCorrect) / float64(numTotal)
-}
-
-func maxValueIndex(v linalg.Vector) int {
-	var maxVal float64
-	var maxIdx int
-	for i, x := range v {
-		if x > maxVal {
-			maxVal = x
-			maxIdx = i
-		}
-	}
-	return maxIdx
 }

@@ -37,6 +37,11 @@ func main() {
 			break
 		}
 		cmdErr = TrainCmd(os.Args[2], os.Args[3], stepSize, trainingCount)
+	case "run":
+		if len(os.Args) != 4 {
+			dieUsage()
+		}
+		cmdErr = RunCmd(os.Args[2], os.Args[3])
 	default:
 		dieUsage()
 	}
@@ -51,7 +56,8 @@ func dieUsage() {
 		"Available commands are:\n\n"+
 		" scrape <output.json>\n"+
 		" stats <data.json>\n"+
-		" train <data.json> <network_file> <step size> <training count>"+
+		" train <data.json> <network_file> <step size> <training count>\n"+
+		" run <network_file> <scramble>"+
 		"\n\n", os.Args[0])
 	os.Exit(1)
 }
