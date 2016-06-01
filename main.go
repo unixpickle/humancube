@@ -42,6 +42,11 @@ func main() {
 			dieUsage()
 		}
 		cmdErr = RunCmd(os.Args[2], os.Args[3])
+	case "runmany":
+		if len(os.Args) != 3 {
+			dieUsage()
+		}
+		cmdErr = RunManyCmd(os.Args[2])
 	default:
 		dieUsage()
 	}
@@ -57,7 +62,8 @@ func dieUsage() {
 		" scrape <output.json>\n"+
 		" stats <data.json>\n"+
 		" train <data.json> <network_file> <step size> <training count>\n"+
-		" run <network_file> <scramble>"+
+		" run <network_file> <scramble>\n"+
+		" runmany <network_file>"+
 		"\n\n", os.Args[0])
 	os.Exit(1)
 }

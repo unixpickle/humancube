@@ -13,3 +13,15 @@ func MaxValueIndex(v linalg.Vector) int {
 	}
 	return maxIdx
 }
+
+func MoveForOutput(n *Network, out linalg.Vector) string {
+	moveIdx := MaxValueIndex(out)
+
+	for name, idx := range n.MoveMap {
+		if idx == moveIdx {
+			return name
+		}
+	}
+
+	panic("code should be unreachable")
+}
