@@ -29,7 +29,7 @@ type SolveData struct {
 	MoveMap map[string]int
 }
 
-func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount int) error {
+func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchSize int) error {
 	data, err := generateSolveData(solveFile)
 	if err != nil {
 		return err
@@ -37,11 +37,12 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount int) er
 
 	trainer := rnn.RMSProp{
 		SGD: rnn.SGD{
-			InSeqs:   data.InSeqs[:trainingCount],
-			OutSeqs:  data.OutSeqs[:trainingCount],
-			CostFunc: rnn.MeanSquaredCost{},
-			StepSize: stepSize,
-			Epochs:   1,
+			InSeqs:    data.InSeqs[:trainingCount],
+			OutSeqs:   data.OutSeqs[:trainingCount],
+			CostFunc:  rnn.MeanSquaredCost{},
+			StepSize:  stepSize,
+			Epochs:    1,
+			BatchSize: batchSize,
 		},
 	}
 

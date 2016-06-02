@@ -23,7 +23,7 @@ func main() {
 		}
 		cmdErr = StatsCmd(os.Args[2])
 	case "train":
-		if len(os.Args) != 6 {
+		if len(os.Args) != 7 {
 			dieUsage()
 		}
 		stepSize, err := strconv.ParseFloat(os.Args[4], 64)
@@ -36,7 +36,12 @@ func main() {
 			cmdErr = err
 			break
 		}
-		cmdErr = TrainCmd(os.Args[2], os.Args[3], stepSize, trainingCount)
+		batchSize, err := strconv.Atoi(os.Args[6])
+		if err != nil {
+			cmdErr = err
+			break
+		}
+		cmdErr = TrainCmd(os.Args[2], os.Args[3], stepSize, trainingCount, batchSize)
 	case "run":
 		if len(os.Args) != 4 {
 			dieUsage()
@@ -61,7 +66,7 @@ func dieUsage() {
 		"Available commands are:\n\n"+
 		" scrape <output.json>\n"+
 		" stats <data.json>\n"+
-		" train <data.json> <network_file> <step size> <training count>\n"+
+		" train <data.json> <network file> <stepsize> <sample count> <batch size>\n"+
 		" run <network_file> <scramble>\n"+
 		" runmany <network_file>"+
 		"\n\n", os.Args[0])
