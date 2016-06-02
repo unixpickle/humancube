@@ -35,12 +35,14 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount int) er
 		return err
 	}
 
-	trainer := rnn.Trainer{
-		InSeqs:   data.InSeqs[:trainingCount],
-		OutSeqs:  data.OutSeqs[:trainingCount],
-		CostFunc: rnn.MeanSquaredCost{},
-		StepSize: stepSize,
-		Epochs:   1,
+	trainer := rnn.RMSProp{
+		SGD: rnn.SGD{
+			InSeqs:   data.InSeqs[:trainingCount],
+			OutSeqs:  data.OutSeqs[:trainingCount],
+			CostFunc: rnn.MeanSquaredCost{},
+			StepSize: stepSize,
+			Epochs:   1,
+		},
 	}
 
 	crossIn := data.InSeqs[trainingCount : trainingCount+testingSamples]
