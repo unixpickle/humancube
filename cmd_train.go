@@ -2,25 +2,23 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"math"
 	"math/rand"
-	"os"
-	"os/signal"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/unixpickle/num-analysis/kahan"
 	"github.com/unixpickle/num-analysis/linalg"
 	"github.com/unixpickle/serializer"
+	"github.com/unixpickle/weakai/neuralnet"
 	"github.com/unixpickle/weakai/rnn"
 )
 
 const (
-	testingSamples = 200
+	testingSamples    = 200
+	evaluateBatchSize = 20
 )
 
 type SolveData struct {
@@ -35,19 +33,11 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchS
 		return err
 	}
 
-	trainer := rnn.RMSProp{
-		SGD: rnn.SGD{
-			InSeqs:    data.InSeqs[:trainingCount],
-			OutSeqs:   data.OutSeqs[:trainingCount],
-			CostFunc:  rnn.MeanSquaredCost{},
-			StepSize:  stepSize,
-			Epochs:    1,
-			BatchSize: batchSize,
-		},
-	}
-
 	crossIn := data.InSeqs[trainingCount : trainingCount+testingSamples]
 	crossOut := data.OutSeqs[trainingCount : trainingCount+testingSamples]
+	trainingIn := data.InSeqs[:trainingCount]
+	trainingOut := data.OutSeqs[:trainingCount]
+	sampleSet := makeSampleSet(trainingIn, trainingOut)
 
 	net, err := ReadNetwork(outFile)
 	if err != nil {
@@ -58,25 +48,24 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchS
 		log.Println("Loaded existing network from file.")
 	}
 
+	gradienter := &neuralnet.RMSProp{
+		Gradienter: &rnn.FullRGradienter{
+			Learner:  net.Block,
+			CostFunc: neuralnet.MeanSquaredCost{},
+		},
+	}
+
 	log.Println("Training (Ctrl+C to finish)...")
 
-	var killed uint32
-	go func() {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt)
-		<-c
-		signal.Stop(c)
-		atomic.StoreUint32(&killed, 1)
-		fmt.Println("\nCaught interrupt. Ctrl+C again to terminate.")
-	}()
-
-	for i := 0; atomic.LoadUint32(&killed) == 0; i++ {
-		log.Printf("Epoch %d: error=%f, correct=%f, cross=%f", i,
-			totalError(trainer.InSeqs, trainer.OutSeqs, net),
-			totalCorrect(trainer.InSeqs, trainer.OutSeqs, net),
+	epochIdx := 0
+	neuralnet.SGDInteractive(gradienter, sampleSet, stepSize, batchSize, func() bool {
+		log.Printf("Epoch %d: error=%f, correct=%f, cross=%f", epochIdx,
+			totalError(trainingIn, trainingOut, net),
+			totalCorrect(trainingIn, trainingOut, net),
 			totalCorrect(crossIn, crossOut, net))
-		trainer.Train(net.RNN)
-	}
+		epochIdx++
+		return true
+	})
 
 	log.Println("Saving...")
 	saved, err := serializer.SerializeWithType(net)
@@ -163,36 +152,51 @@ SolveLoop:
 	return res
 }
 
+func makeSampleSet(ins, outs [][]linalg.Vector) neuralnet.SampleSet {
+	res := make(neuralnet.SampleSet, len(ins))
+	for i, in := range ins {
+		res[i] = rnn.Sequence{Inputs: in, Outputs: outs[i]}
+	}
+	return res
+}
+
 func totalError(inSeqs, outSeqs [][]linalg.Vector, n *Network) float64 {
 	var res kahan.Summer64
-	for i, inSeq := range inSeqs {
-		outSeq := outSeqs[i]
-		for j, inVec := range inSeq {
-			outVec := outSeq[j]
-			actual := n.RNN.StepTime(inVec)
-			for k, a := range actual {
-				res.Add(math.Pow(a-outVec[k], 2))
-			}
+	evaluateAll(inSeqs, outSeqs, n, func(actual, expected linalg.Vector) {
+		for k, a := range actual {
+			res.Add(math.Pow(a-expected[k], 2))
 		}
-		n.RNN.Reset()
-	}
+	})
 	return res.Sum()
 }
 
 func totalCorrect(inSeqs, outSeqs [][]linalg.Vector, n *Network) float64 {
 	var numCorrect int
 	var numTotal int
-	for i, inSeq := range inSeqs {
-		outSeq := outSeqs[i]
-		for j, inVec := range inSeq {
-			outVec := outSeq[j]
-			actual := n.RNN.StepTime(inVec)
-			if MaxValueIndex(actual) == MaxValueIndex(outVec) {
-				numCorrect++
-			}
-			numTotal++
+	evaluateAll(inSeqs, outSeqs, n, func(actual, expected linalg.Vector) {
+		if MaxValueIndex(actual) == MaxValueIndex(expected) {
+			numCorrect++
 		}
-		n.RNN.Reset()
-	}
+		numTotal++
+	})
 	return float64(numCorrect) / float64(numTotal)
+}
+
+func evaluateAll(inSeqs, outSeqs [][]linalg.Vector, n *Network,
+	f func(actual, expected linalg.Vector)) {
+	runner := &rnn.Runner{Block: n.Block}
+	for i := 0; i < len(inSeqs); i += evaluateBatchSize {
+		batchSize := evaluateBatchSize
+		if batchSize > len(inSeqs)-i {
+			batchSize = len(inSeqs) - i
+		}
+		batch := inSeqs[i : i+batchSize]
+		output := runner.RunAll(batch)
+		for j, outSeq := range outSeqs[i : i+batchSize] {
+			for t, actual := range output[j] {
+				expected := outSeq[t]
+				f(actual, expected)
+			}
+		}
+	}
 }

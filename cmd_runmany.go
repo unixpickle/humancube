@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/unixpickle/gocube"
+	"github.com/unixpickle/weakai/rnn"
 )
 
 const ScramblePrintInterval = 50
@@ -18,10 +19,11 @@ func RunManyCmd(netFile string) error {
 	log.Println("Running on scrambles until one gets solved.")
 
 	runIdx := 0
+	runner := &rnn.Runner{Block: net.Block}
 	for {
 		cube := gocube.RandomCubieCube()
 		for i := 0; i < MaxRunLength; i++ {
-			res := net.RNN.StepTime(CubeVector(&cube))
+			res := runner.StepTime(CubeVector(&cube))
 			move := MoveForOutput(net, res)
 			Move(&cube, move)
 			if cube.Solved() {
@@ -29,7 +31,7 @@ func RunManyCmd(netFile string) error {
 				return nil
 			}
 		}
-		net.RNN.Reset()
+		runner.Reset()
 		runIdx++
 		if runIdx%ScramblePrintInterval == 0 {
 			log.Println("Made", runIdx, "failed solve attempts.")

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/unixpickle/num-analysis/linalg"
+	"github.com/unixpickle/weakai/rnn"
 )
 
 const MaxRunLength = 200
@@ -22,8 +23,9 @@ func RunCmd(netFile, scramble string) error {
 
 	fmt.Println("Moves:")
 
+	runner := &rnn.Runner{Block: net.Block}
 	for i := 0; i < MaxRunLength; i++ {
-		res := net.RNN.StepTime(CubeVector(cube))
+		res := runner.StepTime(CubeVector(cube))
 		move := moveForOutput(net, res)
 		fmt.Print(move + " ")
 		Move(cube, move)

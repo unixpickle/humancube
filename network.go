@@ -6,31 +6,35 @@ import (
 	"io/ioutil"
 
 	"github.com/unixpickle/serializer"
+	"github.com/unixpickle/weakai/neuralnet"
 	"github.com/unixpickle/weakai/rnn"
-	"github.com/unixpickle/weakai/rnn/lstm"
-	"github.com/unixpickle/weakai/rnn/softmax"
 )
 
 const serializerTypeNetwork = "github.com/unixpickle/humancube.Network"
 
 const (
-	lstmHiddenSize1 = 40
-	lstmHiddenSize2 = 40
+	lstmHiddenSize1 = 512
+	lstmHiddenSize2 = 512
 )
 
 type Network struct {
-	RNN     rnn.RNN
+	Block   rnn.StackedBlock
 	MoveMap map[string]int
 }
 
 func NewNetwork(inSize int, moveMap map[string]int) *Network {
-	lstmNet1 := lstm.NewNet(rnn.ReLU{}, inSize, lstmHiddenSize1, lstmHiddenSize1)
-	lstmNet2 := lstm.NewNet(rnn.ReLU{}, lstmHiddenSize1, lstmHiddenSize2, len(moveMap))
-	softmaxLayer := softmax.NewSoftmax(len(moveMap))
-	net := rnn.DeepRNN{lstmNet1, lstmNet2, softmaxLayer}
-	net.Randomize()
+	netLayer := neuralnet.Network{
+		&neuralnet.DenseLayer{InputCount: lstmHiddenSize2, OutputCount: len(moveMap)},
+		&neuralnet.SoftmaxLayer{},
+	}
+	netLayer.Randomize()
+
+	lstmNet1 := rnn.NewLSTM(inSize, lstmHiddenSize1)
+	lstmNet2 := rnn.NewLSTM(lstmHiddenSize1, lstmHiddenSize2)
+	outputFilter := rnn.NewNetworkBlock(netLayer, 0)
+
 	return &Network{
-		RNN:     net,
+		Block:   rnn.StackedBlock{lstmNet1, lstmNet2, outputFilter},
 		MoveMap: moveMap,
 	}
 }
@@ -67,9 +71,9 @@ func DeserializeNetwork(d []byte) (serializer.Serializer, error) {
 		return nil, err
 	}
 
-	res.RNN, ok = slice[1].(rnn.RNN)
+	res.Block, ok = slice[1].(rnn.StackedBlock)
 	if !ok {
-		return nil, err
+		return nil, errors.New("expected second slice element to be StackedBlock")
 	}
 
 	return &res, nil
@@ -82,7 +86,7 @@ func (n *Network) Serialize() ([]byte, error) {
 	}
 	return serializer.SerializeSlice([]serializer.Serializer{
 		serializer.Bytes(moveData),
-		n.RNN,
+		n.Block,
 	})
 }
 
