@@ -48,11 +48,15 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchS
 		log.Println("Loaded existing network from file.")
 	}
 
-	gradienter := &neuralnet.RMSProp{
-		Gradienter: &rnn.FullRGradienter{
+	gradienter := &neuralnet.Equilibration{
+		RGradienter: &rnn.FullRGradienter{
 			Learner:  net.Block,
 			CostFunc: neuralnet.MeanSquaredCost{},
 		},
+		Learner:        net.Block,
+		Memory:         0.5,
+		NumSamples:     10,
+		UpdateInterval: 50,
 	}
 
 	log.Println("Training (Ctrl+C to finish)...")
