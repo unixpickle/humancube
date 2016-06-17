@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	testingSamples    = 1
+	testingSamples    = 200
 	evaluateBatchSize = 20
 )
 
@@ -57,6 +57,7 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchS
 		Memory:         0.5,
 		NumSamples:     1,
 		UpdateInterval: 3,
+		Damping:        0.01,
 	}
 
 	log.Println("Training (Ctrl+C to finish)...")
