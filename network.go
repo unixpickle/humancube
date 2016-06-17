@@ -24,6 +24,7 @@ type Network struct {
 
 func NewNetwork(inSize int, moveMap map[string]int) *Network {
 	netLayer := neuralnet.Network{
+		&neuralnet.HyperbolicTangent{},
 		&neuralnet.DenseLayer{InputCount: lstmHiddenSize2, OutputCount: len(moveMap)},
 		&neuralnet.SoftmaxLayer{},
 	}
