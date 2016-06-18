@@ -51,7 +51,7 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchS
 	gradienter := &neuralnet.Equilibration{
 		RGradienter: &rnn.FullRGradienter{
 			Learner:  net.Block,
-			CostFunc: neuralnet.MeanSquaredCost{},
+			CostFunc: neuralnet.DotCost{},
 		},
 		Learner:        net.Block,
 		Memory:         0.5,
@@ -169,7 +169,7 @@ func totalError(inSeqs, outSeqs [][]linalg.Vector, n *Network) float64 {
 	var res kahan.Summer64
 	evaluateAll(inSeqs, outSeqs, n, func(actual, expected linalg.Vector) {
 		for k, a := range actual {
-			res.Add(math.Pow(a-expected[k], 2))
+			res.Add(math.Pow(math.Exp(a)-expected[k], 2))
 		}
 	})
 	return res.Sum()
