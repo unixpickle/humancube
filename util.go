@@ -6,7 +6,7 @@ func MaxValueIndex(v linalg.Vector) int {
 	var maxVal float64
 	var maxIdx int
 	for i, x := range v {
-		if x > maxVal {
+		if x > maxVal || i == 0 {
 			maxVal = x
 			maxIdx = i
 		}
