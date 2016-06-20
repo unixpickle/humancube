@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	testingSamples    = 200
+	testingSamples    = 1
 	evaluateBatchSize = 20
 )
 
@@ -157,7 +157,7 @@ SolveLoop:
 }
 
 func makeSampleSet(ins, outs [][]linalg.Vector) neuralnet.SampleSet {
-	res := make(neuralnet.SampleSet, len(ins))
+	res := make(neuralnet.SliceSampleSet, len(ins))
 	for i, in := range ins {
 		res[i] = rnn.Sequence{Inputs: in, Outputs: outs[i]}
 	}
