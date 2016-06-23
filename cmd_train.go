@@ -62,7 +62,10 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchS
 	log.Println("Training (Ctrl+C to finish)...")
 
 	epochIdx := 0
+	net.Dropout(true)
 	neuralnet.SGDInteractive(gradienter, sampleSet, stepSize, batchSize, func() bool {
+		net.Dropout(false)
+		defer net.Dropout(true)
 		log.Printf("Epoch %d: error=%f, correct=%f, cross=%f", epochIdx,
 			totalError(trainingIn, trainingOut, net),
 			totalCorrect(trainingIn, trainingOut, net),
@@ -70,6 +73,8 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchS
 		epochIdx++
 		return true
 	})
+
+	net.Dropout(false)
 
 	log.Println("Saving...")
 	saved, err := serializer.SerializeWithType(net)

@@ -13,8 +13,9 @@ import (
 const serializerTypeNetwork = "github.com/unixpickle/humancube.Network"
 
 const (
-	lstmHiddenSize1 = 512
-	lstmHiddenSize2 = 512
+	lstmHiddenSize1        = 300
+	lstmHiddenSize2        = 300
+	dropoutKeepProbability = 0.5
 )
 
 type Network struct {
@@ -24,7 +25,10 @@ type Network struct {
 
 func NewNetwork(inSize int, moveMap map[string]int) *Network {
 	netLayer := neuralnet.Network{
-		&neuralnet.HyperbolicTangent{},
+		&neuralnet.DropoutLayer{
+			KeepProbability: dropoutKeepProbability,
+			Training:        false,
+		},
 		&neuralnet.DenseLayer{InputCount: lstmHiddenSize2, OutputCount: len(moveMap)},
 		&neuralnet.LogSoftmaxLayer{},
 	}
@@ -93,6 +97,12 @@ func (n *Network) Serialize() ([]byte, error) {
 
 func (n *Network) SerializerType() string {
 	return serializerTypeNetwork
+}
+
+func (n *Network) Dropout(on bool) {
+	net := n.Block[len(n.Block)-1].(*rnn.NetworkBlock).Network()
+	dropout := net[0].(*neuralnet.DropoutLayer)
+	dropout.Training = on
 }
 
 func init() {
