@@ -48,7 +48,7 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchS
 	}
 
 	gradienter := &neuralnet.Equilibration{
-		RGradienter: &rnn.FullRGradienter{
+		RGradienter: &rnn.BPTT{
 			Learner:  net.Block,
 			CostFunc: neuralnet.DotCost{},
 		},
