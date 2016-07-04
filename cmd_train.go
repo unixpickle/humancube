@@ -11,6 +11,7 @@ import (
 	"github.com/unixpickle/num-analysis/kahan"
 	"github.com/unixpickle/num-analysis/linalg"
 	"github.com/unixpickle/serializer"
+	"github.com/unixpickle/sgd"
 	"github.com/unixpickle/weakai/neuralnet"
 	"github.com/unixpickle/weakai/rnn"
 )
@@ -47,23 +48,18 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchS
 		log.Println("Loaded existing network from file.")
 	}
 
-	gradienter := &neuralnet.Equilibration{
-		RGradienter: &rnn.BPTT{
+	gradienter := &sgd.Adam{
+		Gradienter: &rnn.BPTT{
 			Learner:  net.Block,
 			CostFunc: neuralnet.DotCost{},
 		},
-		Learner:        net.Block,
-		Memory:         0.5,
-		NumSamples:     1,
-		UpdateInterval: 3,
-		Damping:        0.01,
 	}
 
 	log.Println("Training (Ctrl+C to finish)...")
 
 	epochIdx := 0
 	net.Dropout(true)
-	neuralnet.SGDInteractive(gradienter, sampleSet, stepSize, batchSize, func() bool {
+	sgd.SGDInteractive(gradienter, sampleSet, stepSize, batchSize, func() bool {
 		net.Dropout(false)
 		defer net.Dropout(true)
 		log.Printf("Epoch %d: error=%f, correct=%f, cross=%f", epochIdx,
@@ -161,8 +157,8 @@ SolveLoop:
 	return res
 }
 
-func makeSampleSet(ins, outs [][]linalg.Vector) neuralnet.SampleSet {
-	res := make(neuralnet.SliceSampleSet, len(ins))
+func makeSampleSet(ins, outs [][]linalg.Vector) sgd.SampleSet {
+	res := make(sgd.SliceSampleSet, len(ins))
 	for i, in := range ins {
 		res[i] = rnn.Sequence{Inputs: in, Outputs: outs[i]}
 	}
@@ -174,7 +170,7 @@ func totalError(inSeqs, outSeqs [][]linalg.Vector, n *Network) float64 {
 	evaluateAll(inSeqs, outSeqs, n, func(actual, expected linalg.Vector) {
 		res.Add(actual.Dot(expected))
 	})
-	return res.Sum()
+	return -res.Sum()
 }
 
 func totalCorrect(inSeqs, outSeqs [][]linalg.Vector, n *Network) float64 {

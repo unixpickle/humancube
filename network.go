@@ -13,8 +13,7 @@ import (
 const serializerTypeNetwork = "github.com/unixpickle/humancube.Network"
 
 const (
-	lstmHiddenSize1        = 300
-	lstmHiddenSize2        = 300
+	hiddenSize             = 300
 	dropoutKeepProbability = 0.5
 )
 
@@ -29,17 +28,16 @@ func NewNetwork(inSize int, moveMap map[string]int) *Network {
 			KeepProbability: dropoutKeepProbability,
 			Training:        false,
 		},
-		&neuralnet.DenseLayer{InputCount: lstmHiddenSize2, OutputCount: len(moveMap)},
+		&neuralnet.DenseLayer{InputCount: hiddenSize, OutputCount: len(moveMap)},
 		&neuralnet.LogSoftmaxLayer{},
 	}
 	netLayer.Randomize()
 
-	lstmNet1 := rnn.NewLSTM(inSize, lstmHiddenSize1)
-	lstmNet2 := rnn.NewLSTM(lstmHiddenSize1, lstmHiddenSize2)
+	lstmNet1 := rnn.NewGRU(inSize, hiddenSize)
 	outputFilter := rnn.NewNetworkBlock(netLayer, 0)
 
 	return &Network{
-		Block:   rnn.StackedBlock{lstmNet1, lstmNet2, outputFilter},
+		Block:   rnn.StackedBlock{lstmNet1, outputFilter},
 		MoveMap: moveMap,
 	}
 }
