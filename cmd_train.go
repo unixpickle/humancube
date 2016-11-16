@@ -14,6 +14,7 @@ import (
 	"github.com/unixpickle/sgd"
 	"github.com/unixpickle/weakai/neuralnet"
 	"github.com/unixpickle/weakai/rnn"
+	"github.com/unixpickle/weakai/rnn/seqtoseq"
 )
 
 const (
@@ -49,7 +50,8 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchS
 	}
 
 	gradienter := &sgd.Adam{
-		Gradienter: &rnn.BPTT{
+		Gradienter: &seqtoseq.Gradienter{
+			SeqFunc:  &rnn.BlockSeqFunc{B: net.Block},
 			Learner:  net.Block,
 			CostFunc: neuralnet.DotCost{},
 		},
@@ -160,7 +162,7 @@ SolveLoop:
 func makeSampleSet(ins, outs [][]linalg.Vector) sgd.SampleSet {
 	res := make(sgd.SliceSampleSet, len(ins))
 	for i, in := range ins {
-		res[i] = rnn.Sequence{Inputs: in, Outputs: outs[i]}
+		res[i] = seqtoseq.Sample{Inputs: in, Outputs: outs[i]}
 	}
 	return res
 }
