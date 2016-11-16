@@ -3,19 +3,21 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 
 	"github.com/unixpickle/serializer"
 	"github.com/unixpickle/weakai/neuralnet"
 	"github.com/unixpickle/weakai/rnn"
 )
 
-const serializerTypeNetwork = "github.com/unixpickle/humancube.Network"
-
 const (
 	hiddenSize             = 300
 	dropoutKeepProbability = 0.5
 )
+
+func init() {
+	var n Network
+	serializer.RegisterTypedDeserializer(n.SerializerType(), DeserializeNetwork)
+}
 
 type Network struct {
 	Block   rnn.StackedBlock
@@ -33,7 +35,7 @@ func NewNetwork(inSize int, moveMap map[string]int) *Network {
 	}
 	netLayer.Randomize()
 
-	lstmNet1 := rnn.NewGRU(inSize, hiddenSize)
+	lstmNet1 := rnn.NewLSTM(inSize, hiddenSize)
 	outputFilter := rnn.NewNetworkBlock(netLayer, 0)
 
 	return &Network{
@@ -43,43 +45,23 @@ func NewNetwork(inSize int, moveMap map[string]int) *Network {
 }
 
 func ReadNetwork(path string) (*Network, error) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	net, err := serializer.DeserializeWithType(data)
-	if err != nil {
-		return nil, err
-	} else if realNet, ok := net.(*Network); ok {
-		return realNet, nil
-	} else {
-		return nil, errors.New("unexpected type of archived data")
-	}
+	var net *Network
+	err := serializer.LoadAny(path, &net)
+	return net, err
 }
 
-func DeserializeNetwork(d []byte) (serializer.Serializer, error) {
-	slice, err := serializer.DeserializeSlice(d)
-	if err != nil {
-		return nil, err
-	} else if len(slice) != 2 {
-		return nil, errors.New("expected two slice elements")
-	}
-	moveData, ok := slice[0].(serializer.Bytes)
-	if !ok {
-		return nil, errors.New("expected first slice element to be Bytes")
-	}
+func DeserializeNetwork(d []byte) (*Network, error) {
+	var moveData serializer.Bytes
+	var net rnn.StackedBlock
 
-	var res Network
-	if err := json.Unmarshal([]byte(moveData), &res.MoveMap); err != nil {
+	if err := serializer.DeserializeAny(d, &moveData, &net); err != nil {
 		return nil, err
 	}
-
-	res.Block, ok = slice[1].(rnn.StackedBlock)
-	if !ok {
-		return nil, errors.New("expected second slice element to be StackedBlock")
+	var moveMap map[string]int
+	if err := json.Unmarshal(moveData, &moveMap); err != nil {
+		return nil, errors.New("read move map: " + err.Error())
 	}
-
-	return &res, nil
+	return &Network{Block: net, MoveMap: moveMap}, nil
 }
 
 func (n *Network) Serialize() ([]byte, error) {
@@ -87,22 +69,15 @@ func (n *Network) Serialize() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return serializer.SerializeSlice([]serializer.Serializer{
-		serializer.Bytes(moveData),
-		n.Block,
-	})
+	return serializer.SerializeAny(serializer.Bytes(moveData), n.Block)
 }
 
 func (n *Network) SerializerType() string {
-	return serializerTypeNetwork
+	return "github.com/unixpickle/humancube.Network"
 }
 
 func (n *Network) Dropout(on bool) {
 	net := n.Block[len(n.Block)-1].(*rnn.NetworkBlock).Network()
 	dropout := net[0].(*neuralnet.DropoutLayer)
 	dropout.Training = on
-}
-
-func init() {
-	serializer.RegisterDeserializer(serializerTypeNetwork, DeserializeNetwork)
 }
