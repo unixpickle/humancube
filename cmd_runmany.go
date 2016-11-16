@@ -24,7 +24,7 @@ func RunManyCmd(netFile string) error {
 		cube := gocube.RandomCubieCube()
 		for i := 0; i < MaxRunLength; i++ {
 			res := runner.StepTime(CubeVector(&cube))
-			move := MoveForOutput(net, res)
+			move := randomMove(net, res)
 			Move(&cube, move)
 			if cube.Solved() {
 				fmt.Println("Solved cube after", runIdx, "tries.")

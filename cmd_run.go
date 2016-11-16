@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
 
 	"github.com/unixpickle/num-analysis/linalg"
 	"github.com/unixpickle/weakai/rnn"
@@ -26,7 +28,7 @@ func RunCmd(netFile, scramble string) error {
 	runner := &rnn.Runner{Block: net.Block}
 	for i := 0; i < MaxRunLength; i++ {
 		res := runner.StepTime(CubeVector(cube))
-		move := moveForOutput(net, res)
+		move := randomMove(net, res)
 		fmt.Print(move + " ")
 		Move(cube, move)
 		if cube.Solved() {
@@ -42,13 +44,20 @@ func RunCmd(netFile, scramble string) error {
 	return nil
 }
 
-func moveForOutput(n *Network, out linalg.Vector) string {
-	moveIdx := MaxValueIndex(out)
+func randomMove(n *Network, out linalg.Vector) string {
+	num := rand.Float64()
+	outIdx := 0
+	for outIdx < len(out)-1 && num > 0 {
+		num -= math.Exp(out[outIdx])
+		if num > 0 {
+			outIdx++
+		}
+	}
 
 	for name, idx := range n.MoveMap {
-		if idx == moveIdx {
+		if idx == outIdx {
 			return name
 		}
 	}
-	panic("code should be unreachable")
+	return "?"
 }

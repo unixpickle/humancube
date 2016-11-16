@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/unixpickle/num-analysis/linalg"
 	"github.com/unixpickle/serializer"
 	"github.com/unixpickle/weakai/neuralnet"
 	"github.com/unixpickle/weakai/rnn"
@@ -62,6 +63,16 @@ func DeserializeNetwork(d []byte) (*Network, error) {
 		return nil, errors.New("read move map: " + err.Error())
 	}
 	return &Network{Block: net, MoveMap: moveMap}, nil
+}
+
+func (n *Network) OutputMove(out linalg.Vector) string {
+	_, idx := out.Max()
+	for m, i := range n.MoveMap {
+		if i == idx {
+			return m
+		}
+	}
+	return "?"
 }
 
 func (n *Network) Serialize() ([]byte, error) {

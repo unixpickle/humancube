@@ -179,7 +179,9 @@ func totalCorrect(inSeqs, outSeqs [][]linalg.Vector, n *Network) float64 {
 	var numCorrect int
 	var numTotal int
 	evaluateAll(inSeqs, outSeqs, n, func(actual, expected linalg.Vector) {
-		if MaxValueIndex(actual) == MaxValueIndex(expected) {
+		_, max1 := actual.Max()
+		_, max2 := expected.Max()
+		if max1 == max2 {
 			numCorrect++
 		}
 		numTotal++
