@@ -110,20 +110,23 @@ func Train(solveFile, outFile string, stepSize float64, batchSize int) error {
 		net.Dropout(false)
 		defer net.Dropout(true)
 
-		var lastCost float64
-		if lastBatch != nil {
-			lastCost = seqtoseq.TotalCostBlock(net.Block, batchSize, lastBatch, costFunc)
+		if epochIdx%4 == 0 {
+			var lastCost float64
+			if lastBatch != nil {
+				lastCost = seqtoseq.TotalCostBlock(net.Block, batchSize, lastBatch, costFunc)
+			}
+			lastBatch = s
+
+			batchCost := seqtoseq.TotalCostBlock(net.Block, batchSize, s, costFunc)
+
+			sgd.ShuffleSampleSet(validation)
+			subVal := validation.Subset(0, batchSize)
+			validationCost := seqtoseq.TotalCostBlock(net.Block, batchSize, subVal, costFunc)
+
+			log.Printf("Epoch %d: validation=%f cost=%f last=%f", epochIdx, validationCost,
+				batchCost, lastCost)
 		}
-		lastBatch = s
 
-		batchCost := seqtoseq.TotalCostBlock(net.Block, batchSize, s, costFunc)
-
-		sgd.ShuffleSampleSet(validation)
-		subVal := validation.Subset(0, batchSize)
-		validationCost := seqtoseq.TotalCostBlock(net.Block, batchSize, subVal, costFunc)
-
-		log.Printf("Epoch %d: validation=%f cost=%f last=%f", epochIdx, validationCost,
-			batchCost, lastCost)
 		epochIdx++
 		return true
 	})
