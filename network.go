@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	hiddenSize             = 300
+	hiddenSize             = 150
 	dropoutKeepProbability = 0.5
 )
 
@@ -37,10 +37,17 @@ func NewNetwork(inSize int, moveMap map[string]int) *Network {
 	netLayer.Randomize()
 
 	lstmNet1 := rnn.NewLSTM(inSize, hiddenSize)
+	midDropout := rnn.NewNetworkBlock(neuralnet.Network{
+		&neuralnet.DropoutLayer{
+			KeepProbability: dropoutKeepProbability,
+			Training:        false,
+		},
+	}, 0)
+	lstmNet2 := rnn.NewLSTM(hiddenSize, hiddenSize)
 	outputFilter := rnn.NewNetworkBlock(netLayer, 0)
 
 	return &Network{
-		Block:   rnn.StackedBlock{lstmNet1, outputFilter},
+		Block:   rnn.StackedBlock{lstmNet1, midDropout, lstmNet2, outputFilter},
 		MoveMap: moveMap,
 	}
 }

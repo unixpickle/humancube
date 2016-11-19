@@ -75,6 +75,7 @@ func Train(solveFile, outFile string, stepSize float64, batchSize int) error {
 	augParams := &humancube.AugmentParams{
 		LLCases:    10,
 		CrossSkips: true,
+		FirstSkips: true,
 	}
 	humancube.Augment(validation.(*humancube.SampleSet), augParams)
 	humancube.Augment(training.(*humancube.SampleSet), augParams)
