@@ -4,18 +4,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
+
+	"github.com/unixpickle/humancube"
 )
 
-func StatsCmd(dataFile string) error {
-	data, err := ioutil.ReadFile(dataFile)
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "data_file")
+		os.Exit(1)
+	}
+	data, err := ioutil.ReadFile(os.Args[1])
 	if err != nil {
-		return err
+		fmt.Fprintln(os.Stderr, "Read data:", err)
+		os.Exit(1)
 	}
 
-	var solves []ReconstructedSolve
+	var solves []humancube.ReconstructedSolve
 	if err := json.Unmarshal(data, &solves); err != nil {
-		return err
+		fmt.Fprintln(os.Stderr, "Unmarshal data:", err)
+		os.Exit(1)
 	}
 
 	var totalEntries int
@@ -26,13 +35,13 @@ func StatsCmd(dataFile string) error {
 SolveLoop:
 	for _, solve := range solves {
 		totalEntries++
-		cube, err := CubeForMoves(solve.Scramble)
+		cube, err := humancube.CubeForMoves(solve.Scramble)
 		if err != nil {
 			continue
 		}
 		parsedScrambles++
 		for _, move := range strings.Fields(solve.Reconstruction) {
-			if err := Move(cube, move); err != nil {
+			if err := humancube.Move(cube, move); err != nil {
 				continue SolveLoop
 			}
 		}
@@ -46,6 +55,4 @@ SolveLoop:
 	fmt.Println("  Valid scrambles:", parsedScrambles)
 	fmt.Println("  Valid solutions:", parsedReconstructions)
 	fmt.Println("Correct solutions:", correctReconstructions)
-
-	return nil
 }

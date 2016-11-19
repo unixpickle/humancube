@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/rand"
 
+	"github.com/unixpickle/humancube"
 	"github.com/unixpickle/num-analysis/linalg"
 	"github.com/unixpickle/weakai/rnn"
 )
@@ -13,12 +14,12 @@ import (
 const MaxRunLength = 200
 
 func RunCmd(netFile, scramble string) error {
-	cube, err := CubeForMoves(scramble)
+	cube, err := humancube.CubeForMoves(scramble)
 	if err != nil {
 		return errors.New("bad scramble: " + err.Error())
 	}
 
-	net, err := ReadNetwork(netFile)
+	net, err := humancube.ReadNetwork(netFile)
 	if err != nil {
 		return err
 	}
@@ -27,10 +28,10 @@ func RunCmd(netFile, scramble string) error {
 
 	runner := &rnn.Runner{Block: net.Block}
 	for i := 0; i < MaxRunLength; i++ {
-		res := runner.StepTime(CubeVector(cube))
+		res := runner.StepTime(humancube.CubeVector(cube))
 		move := randomMove(net, res)
 		fmt.Print(move + " ")
-		Move(cube, move)
+		humancube.Move(cube, move)
 		if cube.Solved() {
 			fmt.Println()
 			fmt.Println("Cube solved!")
@@ -44,7 +45,7 @@ func RunCmd(netFile, scramble string) error {
 	return nil
 }
 
-func randomMove(n *Network, out linalg.Vector) string {
+func randomMove(n *humancube.Network, out linalg.Vector) string {
 	num := rand.Float64()
 	outIdx := 0
 	for outIdx < len(out)-1 && num > 0 {

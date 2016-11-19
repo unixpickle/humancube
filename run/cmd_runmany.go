@@ -5,13 +5,14 @@ import (
 	"log"
 
 	"github.com/unixpickle/gocube"
+	"github.com/unixpickle/humancube"
 	"github.com/unixpickle/weakai/rnn"
 )
 
 const ScramblePrintInterval = 50
 
 func RunManyCmd(netFile string) error {
-	net, err := ReadNetwork(netFile)
+	net, err := humancube.ReadNetwork(netFile)
 	if err != nil {
 		return err
 	}
@@ -23,9 +24,9 @@ func RunManyCmd(netFile string) error {
 	for {
 		cube := gocube.RandomCubieCube()
 		for i := 0; i < MaxRunLength; i++ {
-			res := runner.StepTime(CubeVector(&cube))
+			res := runner.StepTime(humancube.CubeVector(&cube))
 			move := randomMove(net, res)
-			Move(&cube, move)
+			humancube.Move(&cube, move)
 			if cube.Solved() {
 				fmt.Println("Solved cube after", runIdx, "tries.")
 				return nil

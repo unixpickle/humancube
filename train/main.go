@@ -2,12 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/unixpickle/humancube"
 	"github.com/unixpickle/num-analysis/kahan"
 	"github.com/unixpickle/num-analysis/linalg"
 	"github.com/unixpickle/serializer"
@@ -28,7 +33,35 @@ type SolveData struct {
 	MoveMap map[string]int
 }
 
-func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchSize int) error {
+func main() {
+	if len(os.Args) != 6 {
+		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0],
+			"data_file network_file step_size sample_count batch_size")
+		os.Exit(1)
+	}
+	if err := RunCommand(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func RunCommand() error {
+	stepSize, err := strconv.ParseFloat(os.Args[3], 64)
+	if err != nil {
+		return errors.New("bad step size")
+	}
+	trainingCount, err := strconv.Atoi(os.Args[4])
+	if err != nil {
+		return errors.New("bad training count")
+	}
+	batchSize, err := strconv.Atoi(os.Args[5])
+	if err != nil {
+		return errors.New("bad batch size")
+	}
+	return Train(os.Args[1], os.Args[2], stepSize, trainingCount, batchSize)
+}
+
+func Train(solveFile, outFile string, stepSize float64, trainingCount, batchSize int) error {
 	data, err := generateSolveData(solveFile)
 	if err != nil {
 		return err
@@ -40,11 +73,11 @@ func TrainCmd(solveFile, outFile string, stepSize float64, trainingCount, batchS
 	trainingOut := data.OutSeqs[:trainingCount]
 	sampleSet := makeSampleSet(trainingIn, trainingOut)
 
-	net, err := ReadNetwork(outFile)
+	net, err := humancube.ReadNetwork(outFile)
 	if err != nil {
 		log.Println("Could not load network. Creating new one.")
 		rand.Seed(time.Now().UnixNano())
-		net = NewNetwork(len(data.InSeqs[0][0]), data.MoveMap)
+		net = humancube.NewNetwork(len(data.InSeqs[0][0]), data.MoveMap)
 	} else {
 		log.Println("Loaded existing network from file.")
 	}
@@ -88,12 +121,12 @@ func generateSolveData(solveFile string) (*SolveData, error) {
 		return nil, err
 	}
 
-	var solves []ReconstructedSolve
+	var solves []humancube.ReconstructedSolve
 	if err := json.Unmarshal(data, &solves); err != nil {
 		return nil, err
 	}
 
-	shuffled := make([]ReconstructedSolve, len(solves))
+	shuffled := make([]humancube.ReconstructedSolve, len(solves))
 	for i, j := range rand.Perm(len(solves)) {
 		shuffled[i] = solves[j]
 	}
@@ -122,14 +155,15 @@ func generateSolveData(solveFile string) (*SolveData, error) {
 	}, nil
 }
 
-func generateSolveVec(r ReconstructedSolve, moveMap map[string]int) (ins, outs []linalg.Vector) {
-	cube, _ := CubeForMoves(r.Scramble)
+func generateSolveVec(r humancube.ReconstructedSolve,
+	moveMap map[string]int) (ins, outs []linalg.Vector) {
+	cube, _ := humancube.CubeForMoves(r.Scramble)
 
 	for _, move := range strings.Fields(r.Reconstruction) {
 		outputVec := make(linalg.Vector, len(moveMap))
 		outputVec[moveMap[move]] = 1
-		inputVec := CubeVector(cube)
-		Move(cube, move)
+		inputVec := humancube.CubeVector(cube)
+		humancube.Move(cube, move)
 		ins = append(ins, inputVec)
 		outs = append(outs, outputVec)
 	}
@@ -137,17 +171,17 @@ func generateSolveVec(r ReconstructedSolve, moveMap map[string]int) (ins, outs [
 	return
 }
 
-func usableSolves(solves []ReconstructedSolve) []ReconstructedSolve {
-	var res []ReconstructedSolve
+func usableSolves(solves []humancube.ReconstructedSolve) []humancube.ReconstructedSolve {
+	var res []humancube.ReconstructedSolve
 
 SolveLoop:
 	for _, solve := range solves {
-		cube, err := CubeForMoves(solve.Scramble)
+		cube, err := humancube.CubeForMoves(solve.Scramble)
 		if err != nil {
 			continue
 		}
 		for _, move := range strings.Fields(solve.Reconstruction) {
-			if err := Move(cube, move); err != nil {
+			if err := humancube.Move(cube, move); err != nil {
 				continue SolveLoop
 			}
 		}
@@ -167,7 +201,7 @@ func makeSampleSet(ins, outs [][]linalg.Vector) sgd.SampleSet {
 	return res
 }
 
-func totalError(inSeqs, outSeqs [][]linalg.Vector, n *Network) float64 {
+func totalError(inSeqs, outSeqs [][]linalg.Vector, n *humancube.Network) float64 {
 	var res kahan.Summer64
 	evaluateAll(inSeqs, outSeqs, n, func(actual, expected linalg.Vector) {
 		res.Add(actual.Dot(expected))
@@ -175,7 +209,7 @@ func totalError(inSeqs, outSeqs [][]linalg.Vector, n *Network) float64 {
 	return -res.Sum()
 }
 
-func totalCorrect(inSeqs, outSeqs [][]linalg.Vector, n *Network) float64 {
+func totalCorrect(inSeqs, outSeqs [][]linalg.Vector, n *humancube.Network) float64 {
 	var numCorrect int
 	var numTotal int
 	evaluateAll(inSeqs, outSeqs, n, func(actual, expected linalg.Vector) {
@@ -189,7 +223,7 @@ func totalCorrect(inSeqs, outSeqs [][]linalg.Vector, n *Network) float64 {
 	return float64(numCorrect) / float64(numTotal)
 }
 
-func evaluateAll(inSeqs, outSeqs [][]linalg.Vector, n *Network,
+func evaluateAll(inSeqs, outSeqs [][]linalg.Vector, n *humancube.Network,
 	f func(actual, expected linalg.Vector)) {
 	runner := &rnn.Runner{Block: n.Block}
 	for i := 0; i < len(inSeqs); i += evaluateBatchSize {

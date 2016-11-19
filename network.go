@@ -1,4 +1,4 @@
-package main
+package humancube
 
 import (
 	"encoding/json"
