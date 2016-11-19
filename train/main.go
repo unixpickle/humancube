@@ -72,7 +72,10 @@ func Train(solveFile, outFile string, stepSize float64, batchSize int) error {
 	log.Printf("Augmenting %d training and %d validation...", training.Len(), validation.Len())
 	// Augment the samples the same way every time.
 	rand.Seed(123123)
-	augParams := &humancube.AugmentParams{LLCases: 10}
+	augParams := &humancube.AugmentParams{
+		LLCases:    10,
+		CrossSkips: true,
+	}
 	humancube.Augment(validation.(*humancube.SampleSet), augParams)
 	humancube.Augment(training.(*humancube.SampleSet), augParams)
 	log.Printf("Using %d training and %d validation...", training.Len(), validation.Len())
