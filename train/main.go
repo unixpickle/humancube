@@ -58,12 +58,24 @@ func Train(solveFile, outFile string, stepSize float64, batchSize int) error {
 	if err != nil {
 		return errors.New("load sample set: " + err.Error())
 	}
+
+	// It is important to split before augmenting, to ensure
+	// that the validation set doesn't include samples which
+	// are closely related to the training set.
 	validation, training := sgd.HashSplit(sampleSet, ValidationAmount)
 	if validation.Len() < batchSize || training.Len() < batchSize {
 		return errors.New("not enough samples")
 	}
+	validation = validation.Copy()
+	training = training.Copy()
 
-	rand.Seed(time.Now().UnixNano())
+	log.Printf("Augmenting %d training and %d validation...", training.Len(), validation.Len())
+	// Augment the samples the same way every time.
+	rand.Seed(123123)
+	augParams := &humancube.AugmentParams{LLCases: 10}
+	humancube.Augment(validation.(*humancube.SampleSet), augParams)
+	humancube.Augment(training.(*humancube.SampleSet), augParams)
+	log.Printf("Using %d training and %d validation...", training.Len(), validation.Len())
 
 	net, err := humancube.ReadNetwork(outFile)
 	if err != nil {
@@ -91,7 +103,7 @@ func Train(solveFile, outFile string, stepSize float64, batchSize int) error {
 	net.Dropout(true)
 	var epochIdx int
 	var lastBatch sgd.SampleSet
-	sgd.SGDMini(gradienter, sampleSet, stepSize, batchSize, func(s sgd.SampleSet) bool {
+	sgd.SGDMini(gradienter, training, stepSize, batchSize, func(s sgd.SampleSet) bool {
 		net.Dropout(false)
 		defer net.Dropout(true)
 
