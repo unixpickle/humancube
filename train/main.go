@@ -73,12 +73,11 @@ func Train(solveFile, outFile string, stepSize float64, batchSize int) error {
 	// Augment the samples the same way every time.
 	rand.Seed(123123)
 	augParams := &humancube.AugmentParams{
-		Crossover:  10000,
+		Crossover:  30000,
 		LLCases:    3,
 		CrossSkips: true,
 		FirstSkips: true,
 	}
-	humancube.Augment(validation.(*humancube.SampleSet), augParams)
 	humancube.Augment(training.(*humancube.SampleSet), augParams)
 	log.Printf("Using %d training and %d validation...", training.Len(), validation.Len())
 
