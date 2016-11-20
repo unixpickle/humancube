@@ -1,6 +1,7 @@
 package humancube
 
 import (
+	"math/rand"
 	"strings"
 
 	"github.com/unixpickle/gocube"
@@ -15,6 +16,12 @@ var (
 )
 
 type AugmentParams struct {
+	// Crossover specifies how many scrambles to generate by
+	// performing "genetic" crossover on reconstructions.
+	// The Crossover stage is performed first, before the
+	// other augmentation stages.
+	Crossover int
+
 	// LLCases specifies the number of different last layer
 	// cases to provide for a single F2L solve.
 	LLCases int
@@ -31,6 +38,7 @@ type AugmentParams struct {
 // Augment generates new samples based on a SampleSet of
 // complete solves.
 func Augment(s *SampleSet, params *AugmentParams) {
+	s.Samples = append(s.Samples, augmentCrossover(s, params.Crossover)...)
 	s.Samples = append(s.Samples, augmentLastLayer(s, params.LLCases)...)
 	var extra []Sample
 	if params.CrossSkips {
@@ -40,6 +48,67 @@ func Augment(s *SampleSet, params *AugmentParams) {
 		extra = append(extra, augmentFirstSkips(s)...)
 	}
 	s.Samples = append(s.Samples, extra...)
+}
+
+type crossoverTransition struct {
+	newState string
+	moves    []string
+}
+
+func augmentCrossover(s *SampleSet, count int) []Sample {
+	if len(s.Samples) == 0 {
+		return nil
+	}
+
+	transitions := map[string][]crossoverTransition{}
+	for _, sample := range s.Samples {
+		cube := *sample.Start
+		var mostSolved int
+		var lastState string
+		var lastMoves int
+		sampleMoves := strings.Fields(sample.Moves)
+		for j, move := range sampleMoves {
+			Move(&cube, move)
+			state := describeF2LPairs(&cube)
+			if numSolvedPairs(state) <= mostSolved {
+				continue
+			}
+			mostSolved = numSolvedPairs(state)
+			trans := crossoverTransition{
+				newState: state,
+				moves:    sampleMoves[lastMoves : j+1],
+			}
+			transitions[lastState] = append(transitions[lastState], trans)
+			lastMoves = j + 1
+			lastState = state
+		}
+		finalTrans := crossoverTransition{
+			newState: "done",
+			moves:    sampleMoves[lastMoves:],
+		}
+		transitions[lastState] = append(transitions[lastState], finalTrans)
+	}
+
+	var res []Sample
+	for i := 0; i < count; i++ {
+		var moves []string
+		var state string
+		for state != "done" {
+			transOptions := transitions[state]
+			t := transOptions[rand.Intn(len(transOptions))]
+			state = t.newState
+			moves = append(moves, t.moves...)
+		}
+		cube := gocube.SolvedCubieCube()
+		for i := len(moves) - 1; i >= 0; i-- {
+			MoveInverse(&cube, moves[i])
+		}
+		res = append(res, Sample{
+			Start: &cube,
+			Moves: strings.Join(moves, " "),
+		})
+	}
+	return res
 }
 
 func augmentLastLayer(orig *SampleSet, numCases int) []Sample {
@@ -152,4 +221,36 @@ func hasCrossSolved(c *gocube.CubieCube) bool {
 		}
 	}
 	return true
+}
+
+// describeF2LPairs returns a string of four 1s or 0s,
+// each of which indicates if an F2L pair is solved.
+// If the cross is not solved, it returns "".
+func describeF2LPairs(c *gocube.CubieCube) string {
+	if !hasCrossSolved(c) {
+		return ""
+	}
+	var desc string
+	edges := []int{1, 3, 7, 9}
+	corners := []int{5, 4, 1, 0}
+	for i, edge := range edges {
+		corner := corners[i]
+		if c.Corners[corner].Orientation != 1 || c.Corners[corner].Piece != corner ||
+			c.Edges[edge].Flip || c.Edges[edge].Piece != edge {
+			desc += "0"
+		} else {
+			desc += "1"
+		}
+	}
+	return desc
+}
+
+func numSolvedPairs(desc string) int {
+	var res int
+	for _, x := range desc {
+		if x == '1' {
+			res++
+		}
+	}
+	return res
 }

@@ -73,7 +73,8 @@ func Train(solveFile, outFile string, stepSize float64, batchSize int) error {
 	// Augment the samples the same way every time.
 	rand.Seed(123123)
 	augParams := &humancube.AugmentParams{
-		LLCases:    10,
+		Crossover:  10000,
+		LLCases:    3,
 		CrossSkips: true,
 		FirstSkips: true,
 	}
